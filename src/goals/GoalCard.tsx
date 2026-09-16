@@ -1,0 +1,103 @@
+import { StyleSheet, Text, View } from 'react-native';
+
+import { formatDayKey } from '../coach/days';
+import { formatAmount } from '../coach/format';
+import { deadlineStatus, goalProgress } from '../coach/stats';
+import type { Goal } from '../coach/store';
+import { useType } from '../design/fonts';
+import { colors } from '../design/theme';
+import { Button, Card, IconButton } from '../design/ui';
+
+interface Props {
+  goal: Goal;
+  todayKey: string;
+  onLog: () => void;
+  onEditDeadline: () => void;
+  onDelete?: () => void;
+}
+
+function describeDeadline(goal: Goal, todayKey: string, done: boolean): { text: string; warn: boolean } {
+  const status = deadlineStatus(goal.deadline, todayKey);
+  if (status.kind === 'unset' || !goal.deadline) return { text: 'No deadline', warn: false };
+  const date = formatDayKey(goal.deadline, todayKey);
+  if (status.kind === 'upcoming') {
+    const left = status.daysLeft === 0 ? 'due today' : `${status.daysLeft} ${status.daysLeft === 1 ? 'day' : 'days'} left`;
+    return { text: `Due ${date} · ${left}`, warn: !done && status.daysLeft <= 7 };
+  }
+  return { text: `${date} · ${status.daysOver} ${status.daysOver === 1 ? 'day' : 'days'} over`, warn: !done };
+}
+
+export function GoalCard({ goal, todayKey, onLog, onEditDeadline, onDelete }: Props) {
+  const type = useType();
+  const { percent, done } = goalProgress(goal);
+  const deadline = describeDeadline(goal, todayKey, done);
+  const unit = goal.unit ? ` ${goal.unit}` : '';
+
+  return (
+    <Card style={styles.card}>
+      <View style={styles.top}>
+        <View style={styles.titleBlock}>
+          <Text style={type.bodyStrong} numberOfLines={2}>
+            {goal.title}
+          </Text>
+          <Text style={[type.label, done && styles.doneText]}>
+            {goal.type === 'best' ? 'Best result' : 'Cumulative'}
+            {done ? ' · Reached' : ''}
+          </Text>
+        </View>
+        <View style={styles.numbers}>
+          <Text style={[type.number, styles.current]} numberOfLines={1}>
+            {formatAmount(goal.current)}
+          </Text>
+          <Text style={type.mono} numberOfLines={1}>
+            / {formatAmount(goal.target)}
+            {unit}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: percent }}>
+        <View style={[styles.fill, { width: `${percent}%` }, done && styles.fillDone]} />
+      </View>
+
+      <View style={styles.meta}>
+        <Text style={[type.mono, styles.deadline, deadline.warn && styles.warn]} numberOfLines={1}>
+          {deadline.text}
+        </Text>
+        <Text style={[type.mono, styles.percent, done && styles.doneText]}>{percent}%</Text>
+      </View>
+
+      <View style={styles.actions}>
+        <IconButton icon="calendar-outline" label={`Edit deadline for ${goal.title}`} onPress={onEditDeadline} />
+        {onDelete ? <IconButton icon="trash-outline" label={`Delete ${goal.title}`} onPress={onDelete} /> : null}
+        <View style={styles.spacer} />
+        <Button label="Log progress" small onPress={onLog} accessibilityLabel={`Log progress for ${goal.title}`} />
+      </View>
+    </Card>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { gap: 10 },
+  top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  titleBlock: { flex: 1, gap: 2 },
+  numbers: { alignItems: 'flex-end', maxWidth: '45%' },
+  current: { fontSize: 32, lineHeight: 34 },
+  track: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  fill: { height: '100%', backgroundColor: colors.accent },
+  fillDone: { backgroundColor: colors.success },
+  meta: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  deadline: { flex: 1 },
+  warn: { color: colors.accentStrong },
+  percent: { color: colors.accent },
+  doneText: { color: colors.success },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  spacer: { flex: 1 },
+});

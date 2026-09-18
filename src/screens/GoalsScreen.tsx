@@ -3,16 +3,15 @@ import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDayKey } from '../coach/days';
-import { formatAmount } from '../coach/format';
+import { activityHeatmap } from '../coach/stats';
 import {
-  addBuyItem,
   createGoal,
-  deleteBuyItem,
   deleteGoal,
+  entriesForGoal,
   getFeaturedGoal,
   logProgress,
+  setFeaturedGoal,
   setGoalDeadline,
-  toggleBought,
   useCoach,
   type Goal,
 } from '../coach/store';
@@ -21,7 +20,7 @@ import { confirmDestructive } from '../design/confirm';
 import { useType } from '../design/fonts';
 import { colors, radius, spacing } from '../design/theme';
 import { ScreenTitle, Section } from '../design/ui';
-import { BuyListCard } from '../goals/BuyListCard';
+import { ActivityHeatmap } from '../goals/ActivityHeatmap';
 import { GoalCard } from '../goals/GoalCard';
 import { GoalForm } from '../goals/GoalForm';
 import { LogProgressSheet } from '../goals/LogProgressSheet';
@@ -39,13 +38,10 @@ export function GoalsScreen() {
   if (!loaded) return <View style={styles.root} />;
 
   const featured = getFeaturedGoal(state);
+  const heatmap = activityHeatmap(entriesForGoal(state, featured.id), todayKey);
   const others = state.goals.filter((g) => !g.featured);
   const logGoal = state.goals.find((g) => g.id === logGoalId) ?? null;
   const deadlineGoal = state.goals.find((g) => g.id === deadlineGoalId) ?? null;
-
-  const toBuyLeft = state.toBuy.filter((b) => !b.bought);
-  const toBuyTotal = toBuyLeft.reduce((sum, b) => sum + (b.price ?? 0), 0);
-  const buyAside = `${toBuyLeft.length} left${toBuyTotal > 0 ? ` · ${formatAmount(toBuyTotal)}` : ''}`;
 
   const confirmDeleteGoal = (goal: Goal) =>
     confirmDestructive({
@@ -62,6 +58,7 @@ export function GoalsScreen() {
       todayKey={todayKey}
       onLog={() => setLogGoalId(goal.id)}
       onEditDeadline={() => setDeadlineGoalId(goal.id)}
+      onSetFeatured={() => setFeaturedGoal(goal.id)}
       onDelete={goal.featured ? undefined : () => confirmDeleteGoal(goal)}
     />
   );
@@ -81,6 +78,10 @@ export function GoalsScreen() {
 
           <Section label="Featured · on Home">{cardFor(featured)}</Section>
 
+          <Section label="Last 3 months" aside={`${heatmap.activeDays}/${heatmap.totalDays} active`}>
+            <ActivityHeatmap heatmap={heatmap} todayKey={todayKey} unit={featured.unit} />
+          </Section>
+
           <Section label="Other goals" aside={others.length > 0 ? String(others.length) : undefined}>
             {others.length === 0 ? (
               <Text style={[type.body, styles.muted]}>No other goals yet.</Text>
@@ -97,9 +98,6 @@ export function GoalsScreen() {
             </Pressable>
           </Section>
 
-          <Section label="To buy" aside={buyAside}>
-            <BuyListCard items={state.toBuy} onAdd={addBuyItem} onToggle={toggleBought} onDelete={deleteBuyItem} />
-          </Section>
         </ScrollView>
       </KeyboardAvoidingView>
 

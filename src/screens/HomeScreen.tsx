@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDayKey } from '../coach/days';
 import { goal as homeGoal } from '../coach/goal';
-import { currentStreak, deadlineStatus, last7Days } from '../coach/stats';
+import { currentStreak, deadlineStatus, last7Days, longestStreak } from '../coach/stats';
 import {
   addTask,
   deleteTask,
@@ -14,6 +14,7 @@ import {
   resetCoachData,
   setGoalDeadline,
   toggleTask,
+  updateTask,
   useCoach,
 } from '../coach/store';
 import { useTodayKey } from '../coach/useTodayKey';
@@ -25,6 +26,7 @@ import { DeadlinePicker } from '../home/DeadlinePicker';
 import { GoalProgress } from '../home/GoalProgress';
 import { QuickLog } from '../home/QuickLog';
 import { StatTile } from '../home/StatTile';
+import { TaskForm } from '../home/TaskForm';
 import { TaskListCard } from '../home/TaskListCard';
 import { TodayStrip } from '../home/TodayStrip';
 import { WeekBars } from '../home/WeekBars';
@@ -50,7 +52,7 @@ function confirmReset() {
   });
 }
 
-// Home is driven by the featured goal (100 push-ups).
+// Home is driven by the featured goal selected from Goals.
 export function HomeScreen() {
   const type = useType();
   const insets = useSafeAreaInsets();
@@ -59,6 +61,7 @@ export function HomeScreen() {
   const schedule = useSchedule(); // loaded here too so Reset can't run before the schedule is read
   const todayKey = useTodayKey();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [taskForm, setTaskForm] = useState<{ editingId: string | null; initialText: string } | null>(null);
 
   // Blank until stored data is read, so numbers don't flash from 0.
   if (!loaded || !notes.loaded || !schedule.loaded) return <View style={styles.root} />;
@@ -70,8 +73,10 @@ export function HomeScreen() {
   const week = last7Days(entries, todayKey);
   const activeDays = week.filter((d) => d.total > 0).length;
   const streak = currentStreak(entries, todayKey);
+  const best = longestStreak(entries);
   const deadline = deadlineStatus(featured.deadline, todayKey);
-  const doneCount = state.tasks.filter((t) => t.done).length;
+  const undatedTasks = state.tasks.filter((t) => t.date === null); // dated ones show on Schedule instead
+  const doneCount = undatedTasks.filter((t) => t.done).length;
   const dateLabel = formatDayKey(todayKey, todayKey);
 
   const daysLeftTile =
@@ -120,6 +125,12 @@ export function HomeScreen() {
               <StatTile label="Best set" value={featured.current} unit={featured.unit} />
               <StatTile label="Day streak" value={streak} unit={streak === 1 ? 'day' : 'days'} />
               <StatTile
+                label="Best run"
+                value={best}
+                unit={best === 1 ? 'day' : 'days'}
+                tone={best > 0 && best === streak ? 'default' : 'muted'}
+              />
+              <StatTile
                 label="Days left"
                 {...daysLeftTile}
                 onPress={() => setPickerOpen(true)}
@@ -147,8 +158,15 @@ export function HomeScreen() {
             />
           </Section>
 
-          <Section label="Tasks" aside={`${doneCount}/${state.tasks.length} done`}>
-            <TaskListCard tasks={state.tasks} onToggle={toggleTask} onDelete={deleteTask} onAdd={addTask} />
+          <Section label="Tasks" aside={`${doneCount}/${undatedTasks.length} done`}>
+            <TaskListCard
+              tasks={undatedTasks}
+              onToggle={toggleTask}
+              onDelete={deleteTask}
+              onAdd={addTask}
+              onEdit={(id) => setTaskForm({ editingId: id, initialText: '' })}
+              onSchedule={(draftText) => setTaskForm({ editingId: null, initialText: draftText })}
+            />
           </Section>
 
           <View style={styles.footer}>
@@ -174,6 +192,27 @@ export function HomeScreen() {
         }}
         onClose={() => setPickerOpen(false)}
       />
+
+      <TaskForm
+        visible={taskForm !== null}
+        todayKey={todayKey}
+        editing={taskForm?.editingId ? (state.tasks.find((t) => t.id === taskForm.editingId) ?? null) : null}
+        initialText={taskForm?.initialText}
+        onCancel={() => setTaskForm(null)}
+        onSave={(input) => {
+          if (taskForm?.editingId) updateTask(taskForm.editingId, input);
+          else addTask(input.text, input.date, input.time);
+          setTaskForm(null);
+        }}
+        onDelete={
+          taskForm?.editingId
+            ? () => {
+                deleteTask(taskForm.editingId!);
+                setTaskForm(null);
+              }
+            : undefined
+        }
+      />
     </View>
   );
 }
@@ -194,7 +233,7 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   appName: { fontSize: 68, lineHeight: 72, letterSpacing: 1.5, marginTop: 4 },
   mission: { color: colors.textMuted },
-  tiles: { flexDirection: 'row', gap: spacing.sm },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   footer: {
     marginTop: spacing.xl * 2,
     paddingTop: spacing.lg,

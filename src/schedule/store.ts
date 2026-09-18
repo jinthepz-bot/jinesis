@@ -3,6 +3,8 @@ import { createPersistedStore } from '../storage/persistedStore';
 import { isTimeKey } from './time';
 
 export type EventType = 'recurring' | 'one-off';
+export const EVENT_COLORS = ['accent', 'soft', 'strong', 'success'] as const;
+export type EventColor = (typeof EVENT_COLORS)[number];
 
 export interface ScheduleEvent {
   id: string;
@@ -14,6 +16,7 @@ export interface ScheduleEvent {
   endDate: string | null; // recurring only, optional: "YYYY-MM-DD"
   startTime: string; // "HH:MM", 24-hour
   endTime: string | null; // "HH:MM", 24-hour
+  color: EventColor;
   location: string;
   note: string;
   reminderMinutesBefore: number | null; // null = no reminder
@@ -33,6 +36,7 @@ export interface NewEventInput {
   endDate: string | null;
   startTime: string;
   endTime: string | null;
+  color: EventColor;
   location: string;
   note: string;
   reminderMinutesBefore: number | null;
@@ -44,6 +48,7 @@ const newId = () => `event_${Date.now().toString(36)}_${Math.random().toString(3
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const reminderMinutes = (v: unknown): number | null => (isNum(v) && v > 0 ? Math.round(v) : null);
+const eventColor = (v: unknown): EventColor => (EVENT_COLORS.includes(v as EventColor) ? (v as EventColor) : 'accent');
 
 function records(v: unknown): Record<string, unknown>[] {
   return Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => typeof x === 'object' && x !== null) : [];
@@ -78,6 +83,7 @@ function normalize(raw: unknown): ScheduleState {
         endDate: isDayKey(e.endDate) ? e.endDate : null,
         startTime: e.startTime,
         endTime: isTimeKey(e.endTime) ? e.endTime : null,
+        color: eventColor(e.color),
         location: str(e.location),
         note: str(e.note),
         reminderMinutesBefore: reminderMinutes(e.reminderMinutesBefore),
@@ -95,6 +101,7 @@ function normalize(raw: unknown): ScheduleState {
         endDate: null,
         startTime: e.startTime,
         endTime: isTimeKey(e.endTime) ? e.endTime : null,
+        color: eventColor(e.color),
         location: str(e.location),
         note: str(e.note),
         reminderMinutesBefore: reminderMinutes(e.reminderMinutesBefore),
@@ -134,6 +141,7 @@ export function addEvent(input: NewEventInput): ScheduleEvent | null {
     endDate: input.type === 'recurring' && isDayKey(input.endDate) ? input.endDate : null,
     startTime: input.startTime,
     endTime: isTimeKey(input.endTime) ? input.endTime : null,
+    color: eventColor(input.color),
     location: input.location.trim(),
     note: input.note.trim(),
     reminderMinutesBefore: reminderMinutes(input.reminderMinutesBefore),
@@ -162,6 +170,7 @@ export function updateEvent(id: string, input: NewEventInput): void {
             endDate: input.type === 'recurring' && isDayKey(input.endDate) ? input.endDate : null,
             startTime: input.startTime,
             endTime: isTimeKey(input.endTime) ? input.endTime : null,
+            color: eventColor(input.color),
             location: input.location.trim(),
             note: input.note.trim(),
             reminderMinutesBefore: reminderMinutes(input.reminderMinutesBefore),

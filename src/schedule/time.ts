@@ -13,7 +13,7 @@ export function sanitizeTimeInput(text: string): string {
   return digits.length <= 2 ? digits : `${digits.slice(0, 2)}:${digits.slice(2)}`;
 }
 
-function minutesOf(time: string): number {
+export function minutesOf(time: string): number {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 }

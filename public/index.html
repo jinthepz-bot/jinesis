@@ -8,7 +8,7 @@
 
     <!-- PWA: installable, standalone, dark-themed to match the app (see src/design/theme.ts).
          Expo injects <meta name="theme-color"> itself from app.json's web.themeColor. -->
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
 
     <!-- iOS ignores manifest.json for "Add to Home Screen" — it needs its own tags to
          launch fullscreen (no Safari chrome) with an icon and a title. -->
@@ -16,18 +16,18 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Jinesist" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-touch-icon-120.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152.png" />
-    <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="./icons/apple-touch-icon-120.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="./icons/apple-touch-icon-152.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="./icons/apple-touch-icon-167.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon-180.png" />
 
     <!-- Offline after the first visit — see public/sw.js for exactly what it caches
          and why it's deliberately simple. -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch((error) => {
+          navigator.serviceWorker.register('./sw.js').catch((error) => {
             console.warn('Service worker registration failed', error);
           });
         });

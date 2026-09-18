@@ -7,22 +7,6 @@ import { Card, IconButton } from '../design/ui';
 import { deleteNotePhoto } from './photos';
 import { deleteNote, type RecipeNote } from './store';
 
-function ListSection({ label, items, ordered }: { label: string; items: string[]; ordered?: boolean }) {
-  const type = useType();
-  if (items.length === 0) return null;
-  return (
-    <View style={styles.section}>
-      <Text style={type.label}>{label}</Text>
-      {items.map((item, i) => (
-        <View key={i} style={styles.listRow}>
-          <Text style={[type.mono, styles.bullet]}>{ordered ? `${i + 1}.` : '•'}</Text>
-          <Text style={[type.body, styles.listText]}>{item}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 export function RecipeCard({ note }: { note: RecipeNote }) {
   const type = useType();
 
@@ -39,35 +23,52 @@ export function RecipeCard({ note }: { note: RecipeNote }) {
 
   return (
     <Card style={styles.card}>
-      <View style={styles.header}>
-        <Text style={[type.bodyStrong, styles.title]} numberOfLines={2}>
-          {note.title}
-        </Text>
-        <IconButton icon="trash-outline" label={`Delete recipe "${note.title}"`} onPress={confirmDelete} />
+      <View style={styles.imageWrap}>
+        {note.photoUri ? (
+          <Image source={{ uri: note.photoUri }} style={styles.photo} resizeMode="cover" />
+        ) : (
+          <View style={styles.placeholder}>
+            <Text style={[type.label, styles.placeholderText]}>NO PHOTO</Text>
+          </View>
+        )}
+        <IconButton icon="trash-outline" label={`Delete recipe "${note.title}"`} onPress={confirmDelete} color={colors.onAccent} />
       </View>
-
-      {note.photoUri ? <Image source={{ uri: note.photoUri }} style={styles.photo} resizeMode="cover" /> : null}
-
-      <ListSection label="Ingredients" items={note.ingredients} />
-      <ListSection label="Steps" items={note.steps} ordered />
-
-      {note.notes ? (
-        <View style={styles.section}>
-          <Text style={type.label}>Notes</Text>
-          <Text style={type.body}>{note.notes}</Text>
-        </View>
-      ) : null}
+      <Text style={[type.bodyStrong, styles.title]} numberOfLines={2}>
+        {note.title}
+      </Text>
+      <View style={styles.tags}>
+        {note.cookTime ? <Text style={[type.mono, styles.tag]}>{note.cookTime}</Text> : null}
+        <Text style={[type.mono, styles.tag]}>{note.category}</Text>
+      </View>
+      <View style={styles.rating} accessibilityLabel={`${note.rating} out of 3 stars`}>
+        {[1, 2, 3].map((star) => (
+          <Text key={star} style={[styles.star, star <= note.rating && styles.starActive]}>
+            ★
+          </Text>
+        ))}
+      </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 10 },
-  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  title: { flex: 1 },
-  photo: { width: '100%', height: 180, borderRadius: radius.control, backgroundColor: colors.surface2 },
-  section: { gap: 4 },
-  listRow: { flexDirection: 'row', gap: 8 },
-  bullet: { width: 18, color: colors.accent },
-  listText: { flex: 1 },
+  card: { flex: 1, minWidth: 0, padding: 0, overflow: 'hidden', gap: 8 },
+  imageWrap: { position: 'relative' },
+  photo: { width: '100%', aspectRatio: 1.15, backgroundColor: colors.surface2 },
+  placeholder: {
+    width: '100%',
+    aspectRatio: 1.15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  placeholderText: { color: colors.accent, letterSpacing: 1 },
+  title: { paddingHorizontal: 10, paddingTop: 2 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, paddingHorizontal: 10 },
+  tag: { color: colors.accent, backgroundColor: colors.surface2, borderRadius: radius.control, paddingHorizontal: 6, paddingVertical: 3, fontSize: 9 },
+  rating: { flexDirection: 'row', gap: 2, paddingHorizontal: 10, paddingBottom: 10 },
+  star: { color: colors.border, fontSize: 15 },
+  starActive: { color: colors.accent },
 });

@@ -28,7 +28,11 @@ export function StatTile({ label, value, unit, tone = 'default', onPress, access
         {onPress ? <Ionicons name="calendar-outline" size={12} color={colors.textMuted} /> : null}
       </View>
       <View style={styles.valueRow}>
-        <Text style={[isText ? type.display : type.number, isText ? styles.textValue : styles.value, { color }]} numberOfLines={1}>
+        <Text
+          style={[isText ? type.display : type.number, isText ? styles.textValue : styles.value, { color }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
           {isText ? value.toUpperCase() : value}
         </Text>
         {unit ? <Text style={[type.mono, styles.unit, tone === 'warning' && { color }]}>{unit}</Text> : null}
@@ -57,7 +61,9 @@ export function StatTile({ label, value, unit, tone = 'default', onPress, access
 }
 
 const styles = StyleSheet.create({
-  slot: { flex: 1, flexBasis: 0, minWidth: 0 },
+  // Tiles share the row evenly but never squeeze below a readable width: past four
+  // per row (a phone), the row wraps instead.
+  slot: { flexGrow: 1, flexBasis: 120, minWidth: 0 },
   tile: { flex: 1, paddingHorizontal: 10, paddingVertical: 10, gap: 4 },
   pressed: { opacity: 0.75 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },

@@ -34,6 +34,11 @@ function describeGoal(goal: Goal, todayKey: string): string {
   );
 }
 
+function describeTask(task: { id: string; text: string; date: string | null; time: string | null }, todayKey: string): string {
+  const when = task.date ? `, due ${formatDayKey(task.date, todayKey)}${task.time ? ` ${task.time}` : ''}` : '';
+  return `- "${truncate(task.text, 100)}" (id: ${task.id})${when}`;
+}
+
 function truncate(text: string, max: number): string {
   const oneLine = text.replace(/\s+/g, ' ').trim();
   return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
@@ -94,7 +99,7 @@ export function buildCoachContext(state: CoachState, notes: Note[], schedule: Sc
   lines.push('', `OPEN TASKS (${openTasks.length}):`);
   lines.push(
     ...(openTasks.length > 0
-      ? openTasks.slice(0, MAX_TASKS).map((t) => `- "${truncate(t.text, 100)}" (id: ${t.id})`)
+      ? openTasks.slice(0, MAX_TASKS).map((t) => describeTask(t, todayKey))
       : ['- none']),
   );
 

@@ -13,6 +13,7 @@ interface Props {
   todayKey: string;
   onLog: () => void;
   onEditDeadline: () => void;
+  onSetFeatured?: () => void;
   onDelete?: () => void;
 }
 
@@ -27,7 +28,7 @@ function describeDeadline(goal: Goal, todayKey: string, done: boolean): { text: 
   return { text: `${date} · ${status.daysOver} ${status.daysOver === 1 ? 'day' : 'days'} over`, warn: !done };
 }
 
-export function GoalCard({ goal, todayKey, onLog, onEditDeadline, onDelete }: Props) {
+export function GoalCard({ goal, todayKey, onLog, onEditDeadline, onSetFeatured, onDelete }: Props) {
   const type = useType();
   const { percent, done } = goalProgress(goal);
   const deadline = describeDeadline(goal, todayKey, done);
@@ -69,6 +70,14 @@ export function GoalCard({ goal, todayKey, onLog, onEditDeadline, onDelete }: Pr
 
       <View style={styles.actions}>
         <IconButton icon="calendar-outline" label={`Edit deadline for ${goal.title}`} onPress={onEditDeadline} />
+        {onSetFeatured ? (
+          <IconButton
+            icon={goal.featured ? 'star' : 'star-outline'}
+            label={goal.featured ? `Currently focused: ${goal.title}` : `Make ${goal.title} my focus`}
+            color={goal.featured ? colors.accent : colors.textMuted}
+            onPress={onSetFeatured}
+          />
+        ) : null}
         {onDelete ? <IconButton icon="trash-outline" label={`Delete ${goal.title}`} onPress={onDelete} /> : null}
         <View style={styles.spacer} />
         <Button label="Log progress" small onPress={onLog} accessibilityLabel={`Log progress for ${goal.title}`} />

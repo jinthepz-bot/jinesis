@@ -6,7 +6,7 @@ import { Sheet } from '../design/Sheet';
 import { colors, radius, spacing } from '../design/theme';
 import { Button, fieldStyles } from '../design/ui';
 import { pickPhotoFromCamera, pickPhotoFromLibrary, photosSupported } from './photos';
-import { addChecklist, addQuickNote, addRecipe, type NoteType } from './store';
+import { addChecklist, addQuickNote, addRecipe, RECIPE_CATEGORIES, type NoteType, type RecipeCategory } from './store';
 
 interface Props {
   visible: boolean;
@@ -97,6 +97,9 @@ function FormBody({ onCancel, onSaved }: Omit<Props, 'visible'>) {
   // Recipe
   const [recipeTitle, setRecipeTitle] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [cookTime, setCookTime] = useState('');
+  const [category, setCategory] = useState<RecipeCategory>('Main dish');
+  const [rating, setRating] = useState<1 | 2 | 3>(1);
   const [ingredients, setIngredients] = useState('');
   const [steps, setSteps] = useState('');
   const [recipeNotes, setRecipeNotes] = useState('');
@@ -116,6 +119,9 @@ function FormBody({ onCancel, onSaved }: Omit<Props, 'visible'>) {
       addRecipe({
         title: recipeTitle,
         photoUri,
+        cookTime,
+        category,
+        rating,
         ingredients: splitLines(ingredients),
         steps: splitLines(steps),
         notes: recipeNotes,
@@ -208,6 +214,55 @@ function FormBody({ onCancel, onSaved }: Omit<Props, 'visible'>) {
             />
           </Field>
           <PhotoField uri={photoUri} onChange={setPhotoUri} />
+          <Field label="Cook time (optional)">
+            <TextInput
+              style={[fieldStyles.input, fieldStyles.single, type.body]}
+              value={cookTime}
+              onChangeText={setCookTime}
+              placeholder="e.g. 30 min"
+              placeholderTextColor={colors.textMuted}
+              keyboardAppearance="dark"
+              accessibilityLabel="Cook time"
+            />
+          </Field>
+          <Field label="Category">
+            <View style={styles.choiceWrap} accessibilityRole="radiogroup">
+              {RECIPE_CATEGORIES.map((option) => {
+                const selected = category === option;
+                return (
+                  <Pressable
+                    key={option}
+                    style={[styles.choice, selected && styles.choiceSelected]}
+                    onPress={() => setCategory(option)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={option}
+                  >
+                    <Text style={[type.label, selected && styles.choiceTextSelected]}>{option}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Field>
+          <Field label="Rating">
+            <View style={styles.ratingRow} accessibilityRole="radiogroup">
+              {[1, 2, 3].map((value) => {
+                const selected = value === rating;
+                return (
+                  <Pressable
+                    key={value}
+                    onPress={() => setRating(value as 1 | 2 | 3)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={`${value} star${value === 1 ? '' : 's'}`}
+                    style={[styles.starButton, selected && styles.starSelected]}
+                  >
+                    <Text style={[styles.star, selected && styles.starActive]}>★</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Field>
           <Field label="Ingredients (optional, one per line)">
             <TextInput
               style={[fieldStyles.input, type.body, styles.textAreaSmall]}
@@ -278,5 +333,14 @@ const styles = StyleSheet.create({
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   photoPreview: { width: 64, height: 64, borderRadius: radius.control, backgroundColor: colors.surface2 },
   removeText: { color: colors.accentStrong },
+  choiceWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  choice: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: radius.control, borderWidth: 1, borderColor: colors.border },
+  choiceSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
+  choiceTextSelected: { color: colors.onAccent },
+  ratingRow: { flexDirection: 'row', gap: 8 },
+  starButton: { width: 42, height: 38, borderRadius: radius.control, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  starSelected: { backgroundColor: colors.surface2, borderColor: colors.accent },
+  star: { color: colors.textMuted, fontSize: 22 },
+  starActive: { color: colors.accent },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.xs },
 });

@@ -1,4 +1,4 @@
-import { addDays, daysBetween, weekdayIndex } from './days';
+import { addDays, daysBetween, startOfWeek, weekdayIndex } from './days';
 import type { Goal, LogEntry } from './store';
 
 export interface DayActivity {
@@ -47,4 +47,75 @@ export function deadlineStatus(deadline: string | null, todayKey: string): Deadl
 export function goalProgress(goal: Goal): { percent: number; done: boolean } {
   const percent = Math.max(0, Math.min(100, Math.floor((goal.current / goal.target) * 100)));
   return { percent, done: goal.current >= goal.target };
+}
+
+// The longest run of consecutive logged days anywhere in the history.
+export function longestStreak(entries: LogEntry[]): number {
+  const active = Array.from(new Set(entries.filter((e) => e.value > 0).map((e) => e.date))).sort();
+  let best = 0;
+  let run = 0;
+  for (let i = 0; i < active.length; i++) {
+    run = i > 0 && daysBetween(active[i - 1], active[i]) === 1 ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+  return best;
+}
+
+// --- activity heatmap
+
+export interface HeatmapDay {
+  key: string;
+  total: number;
+  note: string;
+  // 0 = nothing logged; 1..HEATMAP_LEVELS is the day's share of the best day in range.
+  level: number;
+  isToday: boolean;
+  future: boolean; // a later day of the current week: drawn blank so the last column stays aligned
+}
+
+export interface Heatmap {
+  weeks: HeatmapDay[][]; // columns, oldest first; each column runs Monday..Sunday
+  max: number; // best single day in range, 0 when nothing was logged
+  activeDays: number;
+  totalDays: number; // days in range up to and including today
+}
+
+export const HEATMAP_WEEKS = 13; // ~3 months, one column per week
+export const HEATMAP_LEVELS = 4;
+
+// Whole weeks ending with the one containing today, so every column is Monday..Sunday.
+// Values logged on the same day are added together, and their notes joined.
+export function activityHeatmap(entries: LogEntry[], todayKey: string, weeks = HEATMAP_WEEKS): Heatmap {
+  const totals = new Map<string, number>();
+  const notes = new Map<string, string[]>();
+  for (const e of entries) {
+    totals.set(e.date, (totals.get(e.date) ?? 0) + e.value);
+    const note = e.note.trim();
+    if (note) notes.set(e.date, [...(notes.get(e.date) ?? []), note]);
+  }
+
+  const start = addDays(startOfWeek(todayKey), -(weeks - 1) * 7);
+  const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
+  const past = days.filter((key) => key <= todayKey);
+  const max = Math.max(0, ...past.map((key) => totals.get(key) ?? 0));
+
+  const cells = days.map((key): HeatmapDay => {
+    const future = key > todayKey;
+    const total = future ? 0 : (totals.get(key) ?? 0);
+    return {
+      key,
+      total,
+      note: future ? '' : (notes.get(key) ?? []).join(' · '),
+      level: total > 0 && max > 0 ? Math.min(HEATMAP_LEVELS, Math.ceil((total / max) * HEATMAP_LEVELS)) : 0,
+      isToday: key === todayKey,
+      future,
+    };
+  });
+
+  return {
+    weeks: Array.from({ length: weeks }, (_, w) => cells.slice(w * 7, w * 7 + 7)),
+    max,
+    activeDays: past.filter((key) => (totals.get(key) ?? 0) > 0).length,
+    totalDays: past.length,
+  };
 }

@@ -4,15 +4,18 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { addDays, formatDayKey, startOfWeek } from '../coach/days';
+import { deleteTask, toggleTask, updateTask, useCoach } from '../coach/store';
 import { useTodayKey } from '../coach/useTodayKey';
 import { useType } from '../design/fonts';
 import { colors, radius, spacing } from '../design/theme';
 import { Card, ScreenTitle, Section } from '../design/ui';
-import { DayRow } from '../schedule/DayRow';
+import { TaskForm } from '../home/TaskForm';
 import { EventForm } from '../schedule/EventForm';
-import { eventsOnDay, upcomingOccurrences } from '../schedule/occurrences';
+import { upcomingOccurrences } from '../schedule/occurrences';
 import { addEvent, deleteEvent, updateEvent, useSchedule } from '../schedule/store';
+import { TaskRow } from '../schedule/TaskRow';
 import { UpcomingRow } from '../schedule/UpcomingRow';
+import { WeekGrid } from '../schedule/WeekGrid';
 
 const UPCOMING_LIMIT = 8;
 
@@ -20,17 +23,21 @@ export function ScheduleScreen() {
   const type = useType();
   const insets = useSafeAreaInsets();
   const { state, loaded } = useSchedule();
+  const coach = useCoach();
   const todayKey = useTodayKey();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(todayKey));
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
-  if (!loaded) return <View style={styles.root} />;
+  if (!loaded || !coach.loaded) return <View style={styles.root} />;
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const onCurrentWeek = weekStart === startOfWeek(todayKey);
   const editingEvent = state.events.find((e) => e.id === editingId) ?? null;
+  const editingTask = coach.state.tasks.find((t) => t.id === editingTaskId) ?? null;
   const upcoming = upcomingOccurrences(state.events, todayKey, UPCOMING_LIMIT);
+  const weekTasks = coach.state.tasks.filter((task) => task.date && task.date >= weekDays[0] && task.date <= weekDays[6]);
   const weekRange = `${formatDayKey(weekDays[0], todayKey)} – ${formatDayKey(weekDays[6], todayKey)}`;
 
   return (
@@ -67,13 +74,23 @@ export function ScheduleScreen() {
                 <Ionicons name="chevron-forward" size={20} color={colors.text} />
               </Pressable>
             </View>
-            {weekDays.map((day, i) => (
-              <View key={day} style={i > 0 && styles.dayDivider}>
-                <DayRow day={day} isToday={day === todayKey} events={eventsOnDay(state.events, day)} onEventPress={setEditingId} />
-              </View>
-            ))}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
+              <WeekGrid days={weekDays} todayKey={todayKey} events={state.events} onEventPress={setEditingId} />
+            </ScrollView>
           </Card>
         </Section>
+
+        {weekTasks.length > 0 ? (
+          <Section label="Tasks this week" aside={`${weekTasks.filter((task) => task.done).length}/${weekTasks.length} done`}>
+            <Card>
+              {weekTasks.map((task, i) => (
+                <View key={task.id} style={i > 0 && styles.upcomingDivider}>
+                  <TaskRow task={task} onToggle={() => toggleTask(task.id)} onEdit={() => setEditingTaskId(task.id)} />
+                </View>
+              ))}
+            </Card>
+          </Section>
+        ) : null}
 
         <Section label="Coming up">
           <Card>
@@ -122,6 +139,21 @@ export function ScheduleScreen() {
         onDelete={() => {
           if (editingEvent) deleteEvent(editingEvent.id);
           setEditingId(null);
+        }}
+      />
+
+      <TaskForm
+        visible={editingTask !== null}
+        todayKey={todayKey}
+        editing={editingTask}
+        onCancel={() => setEditingTaskId(null)}
+        onSave={(input) => {
+          if (editingTask) updateTask(editingTask.id, input);
+          setEditingTaskId(null);
+        }}
+        onDelete={() => {
+          if (editingTask) deleteTask(editingTask.id);
+          setEditingTaskId(null);
         }}
       />
     </View>

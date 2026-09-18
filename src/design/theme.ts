@@ -16,6 +16,14 @@ export const colors = {
   successSoft: 'rgba(127, 157, 111, 0.16)',
 };
 
+// Rising strengths of the accent, used for the activity heatmap (level 1..4).
+export const accentScale = [
+  'rgba(201, 138, 59, 0.26)',
+  'rgba(201, 138, 59, 0.48)',
+  'rgba(201, 138, 59, 0.74)',
+  colors.accent,
+];
+
 export const radius = {
   card: 10,
   control: 8,

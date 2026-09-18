@@ -28,6 +28,9 @@
       "display": "standalone",
       "lang": "en"
     },
+    "experiments": {
+      "baseUrl": "/jinesis"
+    },
     "plugins": [
       "expo-font",
       [

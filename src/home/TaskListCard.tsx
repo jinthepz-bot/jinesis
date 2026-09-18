@@ -12,9 +12,11 @@ interface Props {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onAdd: (text: string) => void;
+  onEdit: (id: string) => void; // opens the full form (text, date, time) for an existing task
+  onSchedule: (draftText: string) => void; // opens the full form to create one, carrying over what's typed
 }
 
-export function TaskListCard({ tasks, onToggle, onDelete, onAdd }: Props) {
+export function TaskListCard({ tasks, onToggle, onDelete, onAdd, onEdit, onSchedule }: Props) {
   const type = useType();
   const [draft, setDraft] = useState('');
   const canAdd = draft.trim() !== '';
@@ -22,6 +24,13 @@ export function TaskListCard({ tasks, onToggle, onDelete, onAdd }: Props) {
   const add = () => {
     if (!canAdd) return;
     onAdd(draft.trim());
+    setDraft('');
+  };
+
+  // The scheduler takes over the draft, same as adding does, so it can't also be
+  // submitted plain by a stray tap on "+" once the sheet is open.
+  const schedule = () => {
+    onSchedule(draft.trim());
     setDraft('');
   };
 
@@ -47,9 +56,18 @@ export function TaskListCard({ tasks, onToggle, onDelete, onAdd }: Props) {
               {task.text}
             </Text>
             <Pressable
+              onPress={() => onEdit(task.id)}
+              hitSlop={10}
+              style={({ pressed }) => [styles.iconAction, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`Set date and time for ${task.text}`}
+            >
+              <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
+            </Pressable>
+            <Pressable
               onPress={() => onDelete(task.id)}
               hitSlop={10}
-              style={({ pressed }) => [styles.delete, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.iconAction, pressed && styles.pressed]}
               accessibilityRole="button"
               accessibilityLabel={`Delete ${task.text}`}
             >
@@ -72,6 +90,14 @@ export function TaskListCard({ tasks, onToggle, onDelete, onAdd }: Props) {
           submitBehavior="submit"
           accessibilityLabel="New task"
         />
+        <Pressable
+          onPress={schedule}
+          style={({ pressed }) => [styles.addButton, styles.scheduleButton, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Add a task with a date and time"
+        >
+          <Ionicons name="calendar-outline" size={20} color={colors.text} />
+        </Pressable>
         <Pressable
           onPress={add}
           disabled={!canAdd}
@@ -103,7 +129,7 @@ const styles = StyleSheet.create({
   checked: { backgroundColor: colors.success, borderColor: colors.success },
   title: { flex: 1 },
   titleDone: { color: colors.textMuted, textDecorationLine: 'line-through' },
-  delete: { padding: 2 },
+  iconAction: { padding: 2 },
   pressed: { opacity: 0.6 },
   addRow: {
     flexDirection: 'row',
@@ -131,5 +157,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  scheduleButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   disabled: { opacity: 0.45 },
 });

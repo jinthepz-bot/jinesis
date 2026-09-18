@@ -8,7 +8,7 @@ import { Sheet } from '../design/Sheet';
 import { colors, radius, spacing } from '../design/theme';
 import { Button, fieldStyles } from '../design/ui';
 import { MonthCalendar } from '../home/MonthCalendar';
-import type { EventType, NewEventInput, ScheduleEvent } from './store';
+import { EVENT_COLORS, type EventColor, type EventType, type NewEventInput, type ScheduleEvent } from './store';
 import { isTimeKey, sanitizeTimeInput } from './time';
 
 interface Props {
@@ -43,6 +43,13 @@ const WEEKDAY_CHIPS: { value: number; label: string }[] = [
   { value: 6, label: 'S' },
   { value: 0, label: 'S' },
 ];
+
+const COLOR_LABELS: Record<EventColor, string> = {
+  accent: 'Amber',
+  soft: 'Muted amber',
+  strong: 'Rust',
+  success: 'Sage',
+};
 
 export function EventForm({ visible, onCancel, ...rest }: Props) {
   return (
@@ -130,6 +137,7 @@ function FormBody({ todayKey, editing, onCancel, onSave, onDelete }: Omit<Props,
   const [endDate, setEndDate] = useState<string | null>(editing?.endDate ?? null);
   const [startTime, setStartTime] = useState(editing?.startTime ?? '');
   const [endTime, setEndTime] = useState(editing?.endTime ?? '');
+  const [color, setColor] = useState<EventColor>(editing?.color ?? 'accent');
   const [location, setLocation] = useState(editing?.location ?? '');
   const [note, setNote] = useState(editing?.note ?? '');
   const [reminderMinutesBefore, setReminderMinutesBefore] = useState<number | null>(editing?.reminderMinutesBefore ?? null);
@@ -156,6 +164,7 @@ function FormBody({ todayKey, editing, onCancel, onSave, onDelete }: Omit<Props,
       endDate,
       startTime,
       endTime: endTime.trim() === '' ? null : endTime,
+      color,
       location,
       note,
       reminderMinutesBefore,
@@ -266,6 +275,27 @@ function FormBody({ todayKey, editing, onCancel, onSave, onDelete }: Omit<Props,
         </Field>
       </View>
 
+      <Field label="Colour">
+        <View style={styles.colorOptions} accessibilityRole="radiogroup">
+          {EVENT_COLORS.map((option) => {
+            const selected = option === color;
+            return (
+              <Pressable
+                key={option}
+                onPress={() => setColor(option)}
+                style={[styles.colorOption, selected && styles.colorOptionSelected]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={COLOR_LABELS[option]}
+              >
+                <View style={[styles.colorDot, styles[`color_${option}`]]} />
+                <Text style={[type.label, selected && styles.colorTextSelected]}>{COLOR_LABELS[option]}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Field>
+
       <Field label="Location (optional)">
         <TextInput
           style={[fieldStyles.input, fieldStyles.single, type.body]}
@@ -373,6 +403,15 @@ const styles = StyleSheet.create({
   timeField: { flex: 1, minWidth: 0 },
   timeInput: { flex: 1 },
   invalid: { borderColor: colors.accentStrong },
+  colorOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  colorOption: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: radius.control, borderWidth: 1, borderColor: colors.border },
+  colorOptionSelected: { backgroundColor: colors.surface2, borderColor: colors.accent },
+  colorTextSelected: { color: colors.accent },
+  colorDot: { width: 12, height: 12, borderRadius: 6 },
+  color_accent: { backgroundColor: colors.accent },
+  color_soft: { backgroundColor: colors.accentSoft },
+  color_strong: { backgroundColor: colors.accentStrong },
+  color_success: { backgroundColor: colors.success },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   actionsStart: { flex: 1, alignItems: 'flex-start' },
   deleteText: { color: colors.accentStrong },

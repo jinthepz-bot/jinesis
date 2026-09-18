@@ -4,17 +4,21 @@ import { weekdayShort } from '../coach/days';
 import { useType } from '../design/fonts';
 import { colors } from '../design/theme';
 import { EventRow } from './EventRow';
-import type { ScheduleEvent } from './store';
+import type { DayItem } from './occurrences';
+import { TaskRow } from './TaskRow';
 
 interface Props {
   day: string;
   isToday: boolean;
-  events: ScheduleEvent[];
+  items: DayItem[];
   onEventPress: (id: string) => void;
+  onTaskToggle: (id: string) => void;
+  onTaskEdit: (id: string) => void;
 }
 
-// One day of the week view: a header (visually distinct when it's today) and its events.
-export function DayRow({ day, isToday, events, onEventPress }: Props) {
+// One day of the week view: a header (visually distinct when it's today) and its
+// agenda — events and dated tasks together, in the order agendaForDay puts them in.
+export function DayRow({ day, isToday, items, onEventPress, onTaskToggle, onTaskEdit }: Props) {
   const type = useType();
   return (
     <View style={[styles.row, isToday && styles.today]}>
@@ -24,10 +28,21 @@ export function DayRow({ day, isToday, events, onEventPress }: Props) {
         </Text>
         {isToday ? <Text style={[type.label, styles.badge]}>TODAY</Text> : null}
       </View>
-      {events.length === 0 ? (
+      {items.length === 0 ? (
         <Text style={[type.mono, styles.empty]}>Nothing scheduled</Text>
       ) : (
-        events.map((event) => <EventRow key={event.id} event={event} onPress={() => onEventPress(event.id)} />)
+        items.map((item) =>
+          item.kind === 'event' ? (
+            <EventRow key={item.id} event={item.event} onPress={() => onEventPress(item.id)} />
+          ) : (
+            <TaskRow
+              key={item.id}
+              task={item.task}
+              onToggle={() => onTaskToggle(item.id)}
+              onEdit={() => onTaskEdit(item.id)}
+            />
+          ),
+        )
       )}
     </View>
   );

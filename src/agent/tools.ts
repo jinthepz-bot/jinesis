@@ -126,8 +126,19 @@ export const COACH_TOOL_SPECS: ToolSpec[] = [
   {
     name: 'add_task',
     description:
-      'Add a task to the user\'s list ("remind me to email my professor"). For things to do, not things to buy.',
-    properties: { text: { type: 'string', description: "The task in the user's words." } },
+      'Add a task to the user\'s list ("remind me to email my professor", "remind me to email my professor ' +
+      'Friday at 2pm"). For things to do, not things to buy. If the user gives a day and/or time, resolve it to ' +
+      'an absolute date/time yourself (today\'s date is in CURRENT STATE) and pass date and/or time so it shows ' +
+      'on the Schedule; otherwise leave them out and it stays a plain task.',
+    properties: {
+      text: { type: 'string', description: "The task in the user's words." },
+      date: { type: 'string', nullable: true, description: `Optional due date. ${DAY_FORMAT}` },
+      time: {
+        type: 'string',
+        nullable: true,
+        description: `Optional due time. ${TIME_FORMAT} Only used when date is also given.`,
+      },
+    },
     required: ['text'],
   },
   {
@@ -397,9 +408,21 @@ export function executeCoachTool(name: string, rawInput: unknown): ToolRun {
     case 'add_task': {
       const value = text(input.text);
       if (!value) return fail('text is required.');
-      addTask(value);
+
+      const rawDate = text(input.date);
+      if (rawDate && !isDayKey(rawDate)) return fail(`date "${rawDate}" is not valid. ${DAY_FORMAT}`);
+      const rawTime = text(input.time);
+      if (rawTime && !isTimeKey(rawTime)) return fail(`time "${rawTime}" is not valid. ${TIME_FORMAT}`);
+
+      const date = rawDate ?? null;
+      const time = date ? (rawTime ?? null) : null;
+      addTask(value, date, time);
       const task = getCoachState().tasks.at(-1)!;
-      return ok({ added: { id: task.id, text: task.text } }, { kind: 'task_added', label: `Added task "${task.text}"` });
+      const when = task.date ? ` for ${formatDayKey(task.date)}${task.time ? ` at ${task.time}` : ''}` : '';
+      return ok(
+        { added: { id: task.id, text: task.text, date: task.date, time: task.time } },
+        { kind: 'task_added', label: `Added task "${task.text}"${when}` },
+      );
     }
 
     case 'complete_task': {
@@ -477,6 +500,9 @@ export function executeCoachTool(name: string, rawInput: unknown): ToolRun {
       const recipe = addRecipe({
         title,
         photoUri: null,
+        cookTime: '',
+        category: 'Main dish',
+        rating: 1,
         ingredients: splitListSmart(ingredientsRaw),
         steps: splitLines(stepsRaw),
         notes: text(input.notes) ?? '',
@@ -552,6 +578,7 @@ export function executeCoachTool(name: string, rawInput: unknown): ToolRun {
         endTime: endTime ?? null,
         location: text(input.location) ?? '',
         note: text(input.note) ?? '',
+        color: 'accent',
         // Reminders are set manually per event, in Schedule — the coach doesn't set a lead time.
         reminderMinutesBefore: null,
       });

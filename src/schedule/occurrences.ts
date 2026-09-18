@@ -1,4 +1,5 @@
 import { addDays, weekdayIndex } from '../coach/days';
+import { tasksOnDay, type Task } from '../coach/store';
 import type { ScheduleEvent } from './store';
 import { compareTimes } from './time';
 
@@ -6,6 +7,12 @@ export interface Occurrence {
   event: ScheduleEvent;
   date: string;
 }
+
+// One row in a day's agenda: an event occurrence or a task due that day, so the
+// two can be shown together in one time-ordered list (see DayRow).
+export type DayItem =
+  | { kind: 'event'; id: string; event: ScheduleEvent }
+  | { kind: 'task'; id: string; task: Task };
 
 // Whether `event` occurs on `date`.
 export function occursOn(event: ScheduleEvent, date: string): boolean {
@@ -19,6 +26,17 @@ export function occursOn(event: ScheduleEvent, date: string): boolean {
 // Every event occurring on `date`, earliest start time first.
 export function eventsOnDay(events: ScheduleEvent[], date: string): ScheduleEvent[] {
   return events.filter((e) => occursOn(e, date)).sort((a, b) => compareTimes(a.startTime, b.startTime));
+}
+
+// Events and dated tasks due on `date`, merged into one time-ordered list. Untimed
+// tasks (a date with no time) sort first, like an all-day item on a calendar.
+export function agendaForDay(events: ScheduleEvent[], tasks: Task[], date: string): DayItem[] {
+  const items: DayItem[] = [
+    ...eventsOnDay(events, date).map((event): DayItem => ({ kind: 'event', id: event.id, event })),
+    ...tasksOnDay(tasks, date).map((task): DayItem => ({ kind: 'task', id: task.id, task })),
+  ];
+  const timeOf = (item: DayItem) => (item.kind === 'event' ? item.event.startTime : (item.task.time ?? ''));
+  return items.sort((a, b) => timeOf(a).localeCompare(timeOf(b)));
 }
 
 // The next date on or after `from` that `event` occurs, or null if it never will

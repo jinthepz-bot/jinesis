@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createPersistedStore } from '../storage/persistedStore';
 
 export type NoteType = 'quick' | 'recipe' | 'checklist';
+export const RECIPE_CATEGORIES = ['Western', 'Japanese', 'Dessert', 'Main dish', 'Beverage'] as const;
+export type RecipeCategory = (typeof RECIPE_CATEGORIES)[number];
 
 export interface QuickNote {
   id: string;
@@ -30,6 +32,9 @@ export interface RecipeNote {
   type: 'recipe';
   title: string;
   photoUri: string | null; // local file:// path from expo-file-system; never image bytes
+  cookTime: string;
+  category: RecipeCategory;
+  rating: 1 | 2 | 3;
   ingredients: string[];
   steps: string[];
   notes: string; // free text: cook time, servings, where it's from, etc.
@@ -45,6 +50,9 @@ interface NotesState {
 export interface NewRecipeInput {
   title: string;
   photoUri: string | null;
+  cookTime: string;
+  category: RecipeCategory;
+  rating: 1 | 2 | 3;
   ingredients: string[];
   steps: string[];
   notes: string;
@@ -65,6 +73,14 @@ function strArray(v: unknown): string[] {
   return Array.isArray(v)
     ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map((x) => x.trim())
     : [];
+}
+
+function recipeCategory(v: unknown): RecipeCategory {
+  return RECIPE_CATEGORIES.includes(v as RecipeCategory) ? (v as RecipeCategory) : 'Main dish';
+}
+
+function recipeRating(v: unknown): 1 | 2 | 3 {
+  return v === 2 || v === 3 ? v : 1;
 }
 
 function normalizeChecklistItems(v: unknown): ChecklistItem[] {
@@ -95,6 +111,9 @@ function normalize(raw: unknown): NotesState {
         type: 'recipe',
         title: n.title.trim(),
         photoUri: typeof n.photoUri === 'string' && n.photoUri !== '' ? n.photoUri : null,
+        cookTime: str(n.cookTime),
+        category: recipeCategory(n.category),
+        rating: recipeRating(n.rating),
         ingredients: strArray(n.ingredients),
         steps: strArray(n.steps),
         notes: str(n.notes),
@@ -193,6 +212,9 @@ export function addRecipe(input: NewRecipeInput): RecipeNote | null {
     type: 'recipe',
     title,
     photoUri: input.photoUri,
+    cookTime: input.cookTime.trim(),
+    category: input.category,
+    rating: input.rating,
     ingredients: input.ingredients.map((i) => i.trim()).filter(Boolean),
     steps: input.steps.map((s) => s.trim()).filter(Boolean),
     notes: input.notes.trim(),

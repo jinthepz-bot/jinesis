@@ -13,7 +13,9 @@ const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // AppMessage.transcript is typed as the opaque ApiMessage (see ../types), so
 // incoming transcripts are checked against isGeminiTranscript before being
 // trusted as this shape (see toGeminiContents).
-type Role = 'user' | 'model' | 'function';
+// Gemini rejects a `function` role; tool results must come back as a user-role
+// message containing `functionResponse` parts.
+type Role = 'user' | 'model';
 
 interface FunctionCall {
   name: string;
@@ -125,8 +127,9 @@ export function createGeminiBackend(options: { apiKey: string; model: string }):
               functionResponse: { name: call_.name, response: run.isError ? { error: run.content } : safeParseObject(run.content) },
             });
           }
-          // All results for one model turn go back in a single function turn.
-          transcript.push({ role: 'function', parts: responseParts });
+          // Gemini accepts tool results as a user-role message containing
+          // `functionResponse` parts, not as a dedicated `function` role.
+          transcript.push({ role: 'user', parts: responseParts });
 
           if (round >= MAX_TOOL_ROUNDS) throw new Error('Stopped after too many tool calls in one reply.');
         }

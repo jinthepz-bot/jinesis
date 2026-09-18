@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { createPersistedStore } from '../storage/persistedStore';
+import { isTimeKey } from '../schedule/time';
 import { isDayKey } from './days';
 import { roundAmount } from './format';
 
@@ -32,6 +33,8 @@ export interface Task {
   id: string;
   text: string;
   done: boolean;
+  date: string | null; // optional local day "YYYY-MM-DD"; shown on Schedule when set
+  time: string | null; // optional "HH:MM", 24-hour; only meaningful alongside a date
   createdAt: number;
 }
 
@@ -108,8 +111,15 @@ function normalize(raw: unknown): CoachState {
     });
   }
   const featuredIndex = goals.findIndex((g) => g.featured);
-  if (featuredIndex === -1) goals.unshift(featuredGoal());
-  else goals.unshift(...goals.splice(featuredIndex, 1)); // featured goal always first
+  if (featuredIndex === -1) {
+    if (goals.length > 0) goals[0].featured = true;
+    else goals.unshift(featuredGoal());
+  } else {
+    goals.unshift(...goals.splice(featuredIndex, 1)); // featured goal always first
+    goals.forEach((g, index) => {
+      g.featured = index === 0;
+    });
+  }
 
   const goalById = new Map(goals.map((g) => [g.id, g]));
   const entries: LogEntry[] = [];
@@ -135,12 +145,17 @@ function normalize(raw: unknown): CoachState {
 
   const tasks: Task[] = records(obj.tasks)
     .filter((t) => typeof t.id === 'string' && typeof t.text === 'string')
-    .map((t) => ({
-      id: t.id as string,
-      text: t.text as string,
-      done: t.done === true,
-      createdAt: isNum(t.createdAt) ? t.createdAt : 0,
-    }));
+    .map((t) => {
+      const date = isDayKey(t.date) ? t.date : null;
+      return {
+        id: t.id as string,
+        text: t.text as string,
+        done: t.done === true,
+        date,
+        time: date && isTimeKey(t.time) ? t.time : null, // a time with no date isn't shown anywhere, so drop it
+        createdAt: isNum(t.createdAt) ? t.createdAt : 0,
+      };
+    });
 
   const toBuy: BuyItem[] = records(obj.toBuy)
     .filter((b) => typeof b.id === 'string' && typeof b.name === 'string')
@@ -188,7 +203,14 @@ export const getCoachState = store.get;
 export const useCoach = () => store.useStore();
 
 export function getFeaturedGoal(state: CoachState): Goal {
-  return state.goals.find((g) => g.featured) ?? featuredGoal();
+  return state.goals.find((g) => g.featured) ?? state.goals[0] ?? featuredGoal();
+}
+
+export function setFeaturedGoal(goalId: string) {
+  store.update((s) => ({
+    ...s,
+    goals: s.goals.map((g) => ({ ...g, featured: g.id === goalId })),
+  }));
 }
 
 export function entriesForGoal(state: CoachState, goalId: string): LogEntry[] {
@@ -256,21 +278,53 @@ export function setGoalDeadline(goalId: string, deadline: string | null) {
 
 // Deletes a goal and its progress history. The featured goal can't be deleted.
 export function deleteGoal(goalId: string) {
-  if (goalId === FEATURED_GOAL_ID) return;
-  store.update((s) => ({
-    ...s,
-    goals: s.goals.filter((g) => g.id !== goalId),
-    entries: s.entries.filter((e) => e.goalId !== goalId),
-  }));
+  store.update((s) => {
+    const goal = s.goals.find((g) => g.id === goalId);
+    if (!goal || goal.featured) return s;
+    return {
+      ...s,
+      goals: s.goals.filter((g) => g.id !== goalId),
+      entries: s.entries.filter((e) => e.goalId !== goalId),
+    };
+  });
 }
 
 // --- tasks
 
-export function addTask(text: string) {
+export function addTask(text: string, date: string | null = null, time: string | null = null) {
   const trimmed = text.trim();
   if (!trimmed) return;
-  const task: Task = { id: newId('task'), text: trimmed, done: false, createdAt: Date.now() };
+  const task: Task = {
+    id: newId('task'),
+    text: trimmed,
+    done: false,
+    date,
+    time: date ? time : null, // a time with no date isn't shown anywhere, so drop it
+    createdAt: Date.now(),
+  };
   store.update((s) => ({ ...s, tasks: [...s.tasks, task] }));
+}
+
+// Tasks due on `date`, earliest time first, undated-time ones (a date with no
+// time) first among them — the same convention an all-day item gets on a calendar.
+export function tasksOnDay(tasks: Task[], date: string): Task[] {
+  return tasks
+    .filter((t) => t.date === date)
+    .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''));
+}
+
+export interface TaskEdit {
+  text: string;
+  date: string | null;
+  time: string | null;
+}
+
+export function updateTask(id: string, input: TaskEdit) {
+  const text = input.text.trim();
+  if (!text) return;
+  const date = input.date;
+  const time = date ? input.time : null; // a time with no date isn't shown anywhere, so drop it
+  store.update((s) => ({ ...s, tasks: s.tasks.map((t) => (t.id === id ? { ...t, text, date, time } : t)) }));
 }
 
 export function toggleTask(id: string) {

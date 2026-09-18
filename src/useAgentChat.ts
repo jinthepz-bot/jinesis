@@ -5,7 +5,7 @@ import { buildCoachContext } from './agent/context';
 import { TurnError } from './agent/types';
 import { dayKey } from './coach/days';
 import { getCoachState } from './coach/store';
-import { getJournalState } from './journal/store';
+import { getNotesState } from './notes/store';
 import { getScheduleState } from './schedule/store';
 import { loadMessages, saveMessages } from './storage';
 import { makeId, type Activity, type AppMessage, type TextMessage } from './types';
@@ -48,7 +48,7 @@ export function useAgentChat() {
 
     try {
       // Fresh snapshot of the user's data for this turn.
-      const context = buildCoachContext(getCoachState(), getJournalState().entries, getScheduleState().events, dayKey());
+      const context = buildCoachContext(getCoachState(), getNotesState().notes, getScheduleState().events, dayKey());
       const reply = await backend.respond(history, context, signal);
       setMessages((prev) => [
         ...prev,

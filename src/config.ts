@@ -11,7 +11,9 @@ const provider: Provider = process.env.EXPO_PUBLIC_LLM_PROVIDER?.trim() === 'cla
 
 const gemini = {
   apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim() ?? '',
-  model: process.env.EXPO_PUBLIC_GEMINI_MODEL?.trim() || 'gemini-2.5-flash',
+  // gemini-2.5-flash is no longer available to new API keys; gemini-3.6-flash is
+  // Google's current recommended stable replacement and still has a free tier.
+  model: process.env.EXPO_PUBLIC_GEMINI_MODEL?.trim() || 'gemini-3.6-flash',
 };
 
 const claude = {

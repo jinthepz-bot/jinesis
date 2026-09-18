@@ -16,6 +16,7 @@ export interface ScheduleEvent {
   endTime: string | null; // "HH:MM", 24-hour
   location: string;
   note: string;
+  reminderMinutesBefore: number | null; // null = no reminder
   createdAt: number;
 }
 
@@ -34,6 +35,7 @@ export interface NewEventInput {
   endTime: string | null;
   location: string;
   note: string;
+  reminderMinutesBefore: number | null;
 }
 
 const KEY = 'jinesist.schedule.v1';
@@ -41,6 +43,7 @@ const KEY = 'jinesist.schedule.v1';
 const newId = () => `event_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const reminderMinutes = (v: unknown): number | null => (isNum(v) && v > 0 ? Math.round(v) : null);
 
 function records(v: unknown): Record<string, unknown>[] {
   return Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => typeof x === 'object' && x !== null) : [];
@@ -77,6 +80,7 @@ function normalize(raw: unknown): ScheduleState {
         endTime: isTimeKey(e.endTime) ? e.endTime : null,
         location: str(e.location),
         note: str(e.note),
+        reminderMinutesBefore: reminderMinutes(e.reminderMinutesBefore),
         createdAt: isNum(e.createdAt) ? e.createdAt : 0,
       });
     } else {
@@ -93,6 +97,7 @@ function normalize(raw: unknown): ScheduleState {
         endTime: isTimeKey(e.endTime) ? e.endTime : null,
         location: str(e.location),
         note: str(e.note),
+        reminderMinutesBefore: reminderMinutes(e.reminderMinutesBefore),
         createdAt: isNum(e.createdAt) ? e.createdAt : 0,
       });
     }
@@ -131,6 +136,7 @@ export function addEvent(input: NewEventInput): ScheduleEvent | null {
     endTime: isTimeKey(input.endTime) ? input.endTime : null,
     location: input.location.trim(),
     note: input.note.trim(),
+    reminderMinutesBefore: reminderMinutes(input.reminderMinutesBefore),
     createdAt: Date.now(),
   };
   store.update((s) => ({ events: [...s.events, event] }));
@@ -158,6 +164,7 @@ export function updateEvent(id: string, input: NewEventInput): void {
             endTime: isTimeKey(input.endTime) ? input.endTime : null,
             location: input.location.trim(),
             note: input.note.trim(),
+            reminderMinutesBefore: reminderMinutes(input.reminderMinutesBefore),
           }
         : e,
     ),

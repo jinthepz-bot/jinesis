@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { describeDayDistance, formatDayKey } from '../coach/days';
 import { confirmDestructive } from '../design/confirm';
@@ -25,6 +25,15 @@ const TYPES: { value: EventType; label: string; hint: string }[] = [
   { value: 'one-off', label: 'One-off', hint: 'A single date, like an exam or appointment.' },
 ];
 
+const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: 'None' },
+  { value: 5, label: '5 min' },
+  { value: 10, label: '10 min' },
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
+  { value: 60, label: '1 hr' },
+];
+
 const WEEKDAY_CHIPS: { value: number; label: string }[] = [
   { value: 1, label: 'M' },
   { value: 2, label: 'T' },
@@ -43,10 +52,18 @@ export function EventForm({ visible, onCancel, ...rest }: Props) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  children,
+  style,
+}: {
+  label: string;
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   const type = useType();
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, style]}>
       <Text style={type.label}>{label}</Text>
       {children}
     </View>
@@ -115,6 +132,7 @@ function FormBody({ todayKey, editing, onCancel, onSave, onDelete }: Omit<Props,
   const [endTime, setEndTime] = useState(editing?.endTime ?? '');
   const [location, setLocation] = useState(editing?.location ?? '');
   const [note, setNote] = useState(editing?.note ?? '');
+  const [reminderMinutesBefore, setReminderMinutesBefore] = useState<number | null>(editing?.reminderMinutesBefore ?? null);
 
   const toggleDay = (value: number) =>
     setDays((prev) => (prev.includes(value) ? prev.filter((d) => d !== value) : [...prev, value].sort((a, b) => a - b)));
@@ -140,6 +158,7 @@ function FormBody({ todayKey, editing, onCancel, onSave, onDelete }: Omit<Props,
       endTime: endTime.trim() === '' ? null : endTime,
       location,
       note,
+      reminderMinutesBefore,
     });
   };
 
@@ -221,7 +240,7 @@ function FormBody({ todayKey, editing, onCancel, onSave, onDelete }: Omit<Props,
       )}
 
       <View style={styles.timeRow}>
-        <Field label="Start time">
+        <Field label="Start time" style={styles.timeField}>
           <TextInput
             style={[fieldStyles.input, fieldStyles.single, type.mono, styles.timeInput, !startTimeValid && startTime !== '' && styles.invalid]}
             value={startTime}
@@ -233,7 +252,7 @@ function FormBody({ todayKey, editing, onCancel, onSave, onDelete }: Omit<Props,
             accessibilityLabel="Start time"
           />
         </Field>
-        <Field label="End time (optional)">
+        <Field label="End (optional)" style={styles.timeField}>
           <TextInput
             style={[fieldStyles.input, fieldStyles.single, type.mono, styles.timeInput, !endTimeValid && styles.invalid]}
             value={endTime}
@@ -271,6 +290,27 @@ function FormBody({ todayKey, editing, onCancel, onSave, onDelete }: Omit<Props,
         />
       </Field>
 
+      <Field label="Remind me before it starts">
+        <View style={styles.reminderOptions} accessibilityRole="radiogroup">
+          {REMINDER_OPTIONS.map((option) => {
+            const selected = option.value === reminderMinutesBefore;
+            return (
+              <Pressable
+                key={String(option.value)}
+                style={[styles.reminderChip, selected && styles.segmentSelected]}
+                onPress={() => setReminderMinutesBefore(option.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                aria-checked={selected}
+                accessibilityLabel={`Remind me ${option.label === 'None' ? 'never' : option.label + ' before'}`}
+              >
+                <Text style={[type.label, selected && styles.segmentTextSelected]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Field>
+
       <View style={styles.actions}>
         <View style={styles.actionsStart}>
           {onDelete ? (
@@ -300,6 +340,15 @@ const styles = StyleSheet.create({
   segmentOption: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: radius.control - 2 },
   segmentSelected: { backgroundColor: colors.accent },
   segmentTextSelected: { color: colors.onAccent },
+  reminderOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  reminderChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: radius.control,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
+  },
   weekdays: { flexDirection: 'row', gap: 6 },
   dayChip: {
     flex: 1,
@@ -318,6 +367,10 @@ const styles = StyleSheet.create({
   clearText: { color: colors.accentStrong },
   pickText: { color: colors.accent },
   timeRow: { flexDirection: 'row', gap: spacing.md },
+  // Flexbox children default to a min-width based on their unwrapped content, which let
+  // "End time (optional)" push past the sheet's edge on a narrow phone instead of
+  // wrapping. flex: 1 + minWidth: 0 forces both halves to actually share the row.
+  timeField: { flex: 1, minWidth: 0 },
   timeInput: { flex: 1 },
   invalid: { borderColor: colors.accentStrong },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },

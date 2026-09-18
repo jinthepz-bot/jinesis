@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { FontProvider } from './src/design/fonts';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { NotificationsEngine } from './src/notifications/NotificationsEngine';
 import { migrateChatData } from './src/storage/migrateChatData';
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
     <SafeAreaProvider>
       <FontProvider>
         <RootNavigator />
+        <NotificationsEngine />
       </FontProvider>
     </SafeAreaProvider>
   );

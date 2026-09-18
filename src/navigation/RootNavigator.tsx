@@ -12,6 +12,7 @@ import { GoalsScreen } from '../screens/GoalsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { JournalScreen } from '../screens/JournalScreen';
 import { ScheduleScreen } from '../screens/ScheduleScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 
 export type RootTabParamList = {
   Home: undefined;
@@ -19,6 +20,7 @@ export type RootTabParamList = {
   Journal: undefined;
   Schedule: undefined;
   Chat: undefined;
+  Settings: undefined;
 };
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -30,6 +32,7 @@ const TAB_ICONS: Record<keyof RootTabParamList, [IconName, IconName]> = {
   Journal: ['book', 'book-outline'],
   Schedule: ['calendar', 'calendar-outline'],
   Chat: ['chatbubble-ellipses', 'chatbubble-ellipses-outline'],
+  Settings: ['settings', 'settings-outline'],
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -88,6 +91,15 @@ function ScheduleTab() {
   );
 }
 
+function SettingsTab() {
+  return (
+    <>
+      <FocusAwareStatusBar />
+      <SettingsScreen />
+    </>
+  );
+}
+
 // ChatScreen pads its composer for the home indicator itself. Inside the tab
 // navigator the tab bar already covers that, so give it a zero bottom inset.
 function ChatTab() {
@@ -111,7 +123,9 @@ export function RootNavigator() {
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textMuted,
           tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-          tabBarLabelStyle: [type.label, { fontSize: 10, letterSpacing: 0.8, color: undefined }],
+          // Six tabs (since Settings was added) is tight on a 375px-wide phone — the
+          // original 10px/0.8 letter-spacing let "SCHEDULE" and "SETTINGS" clip.
+          tabBarLabelStyle: [type.label, { fontSize: 9, letterSpacing: 0.2, color: undefined }],
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size - 2} color={color} />
           ),
@@ -122,6 +136,7 @@ export function RootNavigator() {
         <Tab.Screen name="Journal" component={JournalTab} />
         <Tab.Screen name="Schedule" component={ScheduleTab} />
         <Tab.Screen name="Chat" component={ChatTab} />
+        <Tab.Screen name="Settings" component={SettingsTab} />
       </Tab.Navigator>
     </NavigationContainer>
   );

@@ -35,6 +35,19 @@ export function nextOccurrence(event: ScheduleEvent, from: string): string | nul
   return null;
 }
 
+// Every occurrence of every event across `days` days starting at `from` (inclusive),
+// earliest first — a recurring class contributes one row per week it meets in the
+// window. Used to schedule reminders across a rolling window, unlike `upcomingOccurrences`
+// below, which only wants each event's single soonest occurrence for a "coming up" list.
+export function occurrencesInWindow(events: ScheduleEvent[], from: string, days: number): Occurrence[] {
+  const out: Occurrence[] = [];
+  for (let i = 0; i < days; i++) {
+    const date = addDays(from, i);
+    for (const event of eventsOnDay(events, date)) out.push({ event, date });
+  }
+  return out;
+}
+
 // Each event's soonest occurrence on or after `from`, soonest first. A recurring
 // class contributes one row here, not one per future week.
 export function upcomingOccurrences(events: ScheduleEvent[], from: string, limit: number): Occurrence[] {

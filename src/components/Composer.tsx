@@ -1,9 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Keyboard,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type NativeSyntheticEvent,
+  type TextInputKeyPressEventData,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useType } from '../design/fonts';
 import { colors, radius } from '../design/theme';
+
+// Enter sends and Shift+Enter starts a new line, but only where there's a keyboard to
+// hold Shift with. A touch keyboard keeps the plain multiline behaviour — the Send
+// button is how you send there.
+const enterSends = Platform.OS === 'web' && window.matchMedia('(pointer: fine)').matches;
 
 function useKeyboardVisible(): boolean {
   const [visible, setVisible] = useState(false);
@@ -37,6 +52,23 @@ export function Composer({ busy, onSend, onStop }: Props) {
     setText('');
   };
 
+  // react-native-web routes keydown through onKeyPress and only lets the browser insert
+  // the newline if nothing prevented the default, so this one handler covers both halves
+  // of the rule. The fields it reads are web-only, hence the cast.
+  const handleKeyPress = (event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    const native = event.nativeEvent as TextInputKeyPressEventData & {
+      shiftKey?: boolean;
+      isComposing?: boolean;
+      keyCode?: number;
+    };
+    if (native.key !== 'Enter' || native.shiftKey) return;
+    // Enter also confirms an in-progress IME candidate (Japanese, Chinese, Korean);
+    // sending there would cut the word off mid-composition.
+    if (native.isComposing || native.keyCode === 229) return;
+    event.preventDefault();
+    submit();
+  };
+
   return (
     <View style={[styles.bar, { paddingBottom: keyboardVisible ? 10 : Math.max(insets.bottom, 10) }]}>
       <TextInput
@@ -47,6 +79,7 @@ export function Composer({ busy, onSend, onStop }: Props) {
         placeholderTextColor={colors.textMuted}
         keyboardAppearance="dark"
         accessibilityLabel="Message"
+        onKeyPress={enterSends ? handleKeyPress : undefined}
         multiline
       />
       {busy ? (

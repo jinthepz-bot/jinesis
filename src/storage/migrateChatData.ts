@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { addTask, coachReady } from '../coach/store';
-import { addJournalEntry, journalReady } from '../journal/store';
+import { addQuickNote, notesReady } from '../notes/store';
 
 const OLD_KEY = 'jinesis.data.v1'; // Stage 1 chat to-dos and notes
 const FLAG_KEY = 'jinesist.chatDataMigrated.v1';
@@ -18,8 +18,8 @@ interface OldNote {
 }
 
 // The Chat screen used to keep its own to-do and note lists. Those are now Home
-// tasks and Journal entries, so bring the old data over once. Open to-dos become
-// tasks (done ones are history), notes become journal entries keeping their time.
+// tasks and quick notes, so bring the old data over once. Open to-dos become
+// tasks (done ones are history), notes become quick notes keeping their time.
 export async function migrateChatData(): Promise<void> {
   try {
     if (await AsyncStorage.getItem(FLAG_KEY)) return;
@@ -27,7 +27,7 @@ export async function migrateChatData(): Promise<void> {
     const raw = await AsyncStorage.getItem(OLD_KEY);
     if (raw) {
       const old = JSON.parse(raw) as { todos?: OldTodo[]; notes?: OldNote[] };
-      await Promise.all([coachReady, journalReady]);
+      await Promise.all([coachReady, notesReady]);
 
       for (const todo of Array.isArray(old.todos) ? old.todos : []) {
         if (typeof todo?.title !== 'string' || todo.done === true) continue;
@@ -35,7 +35,7 @@ export async function migrateChatData(): Promise<void> {
       }
       for (const note of Array.isArray(old.notes) ? old.notes : []) {
         if (typeof note?.text !== 'string') continue;
-        addJournalEntry(note.text, typeof note.createdAt === 'number' ? note.createdAt : undefined);
+        addQuickNote(note.text, typeof note.createdAt === 'number' ? note.createdAt : undefined);
       }
     }
 

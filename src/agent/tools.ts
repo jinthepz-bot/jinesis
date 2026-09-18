@@ -14,7 +14,7 @@ import {
   toggleTask,
   type Goal,
 } from '../coach/store';
-import { addJournalEntry, getJournalState } from '../journal/store';
+import { addChecklist, addQuickNote, addRecipe, getNotesState, searchNotes, type Note } from '../notes/store';
 import { describeEventDays, describeEventTime } from '../schedule/format';
 import { eventsOnDay } from '../schedule/occurrences';
 import { addEvent, deleteEvent, getScheduleState, type EventType, type ScheduleEvent } from '../schedule/store';
@@ -23,8 +23,21 @@ import type { ActionRecord } from '../types';
 
 const DAY_FORMAT = 'Local date "YYYY-MM-DD".';
 const TIME_FORMAT = '24-hour "HH:MM", e.g. "10:15".';
-const MAX_JOURNAL_RESULTS = 20;
+const MAX_NOTE_RESULTS = 20;
 const MAX_SCHEDULE_RESULTS = 20;
+
+// A single line might be a natural comma-separated list ("flour, eggs, milk"),
+// which is common for ingredients and checklist items but not for steps (whose
+// sentences often contain their own commas), so only these two try the fallback.
+function splitListSmart(raw: string): string[] {
+  const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length > 1) return lines;
+  return lines.flatMap((l) => l.split(',').map((s) => s.trim()).filter(Boolean));
+}
+
+function splitLines(raw: string): string[] {
+  return raw.split('\n').map((l) => l.trim()).filter(Boolean);
+}
 
 const WEEKDAY_NAMES: Record<string, number> = {
   sun: 0, sunday: 0,
@@ -139,20 +152,47 @@ export const COACH_TOOL_SPECS: ToolSpec[] = [
     required: ['item_id'],
   },
   {
-    name: 'save_journal_entry',
+    name: 'save_note',
     description:
-      'Save a journal entry when the user wants a thought written down ("note down that..."). ' +
-      'The app stamps the date and time automatically.',
-    properties: { text: { type: 'string', description: "The entry in the user's words." } },
-    required: ['text'],
+      'Save a quick note or a checklist. For a quick note ("note down that...", "write down..."), use type ' +
+      '"quick" and put the text in content. For a checklist ("make me a packing list"), use type "checklist", ' +
+      'give it a title, and put the items in content, one per line. For a recipe, use save_recipe instead.',
+    properties: {
+      type: {
+        type: 'string',
+        enum: ['quick', 'checklist'],
+        description: '"quick" for free text, "checklist" for a titled list of checkable items.',
+      },
+      title: { type: 'string', nullable: true, description: 'Required for a checklist. Not used for a quick note.' },
+      content: {
+        type: 'string',
+        description: 'Quick note: the text, in the user\'s words. Checklist: the items, one per line.',
+      },
+    },
+    required: ['type', 'content'],
   },
   {
-    name: 'get_recent_journal',
+    name: 'save_recipe',
+    description: 'Save a recipe with its ingredients and steps. The user attaches a photo themselves, if any.',
+    properties: {
+      title: { type: 'string', description: 'Recipe title.' },
+      ingredients: { type: 'string', description: 'Ingredients, one per line (or comma-separated).' },
+      steps: { type: 'string', description: 'Steps in order, one per line.' },
+      notes: {
+        type: 'string',
+        nullable: true,
+        description: "Optional: cook time, servings, where it's from, or anything else worth remembering.",
+      },
+    },
+    required: ['title', 'ingredients', 'steps'],
+  },
+  {
+    name: 'search_notes',
     description:
-      'Read journal entries from the last N days. Only needed to look further back than the entries already in ' +
-      'CURRENT STATE. Changes nothing.',
-    properties: { days: { type: 'number', description: 'How many days back to read.' } },
-    required: ['days'],
+      "Search the user's notes (quick notes, recipes, checklists) by title and content. Only needed to look " +
+      'beyond the recent notes already in CURRENT STATE. Changes nothing.',
+    properties: { query: { type: 'string', description: 'Search text.' } },
+    required: ['query'],
   },
   {
     name: 'add_event',
@@ -404,29 +444,64 @@ export function executeCoachTool(name: string, rawInput: unknown): ToolRun {
       );
     }
 
-    case 'save_journal_entry': {
-      const value = text(input.text);
-      if (!value) return fail('text is required.');
-      const entry = addJournalEntry(value);
-      if (!entry) return fail('Could not save that entry.');
+    case 'save_note': {
+      const content = text(input.content);
+      if (!content) return fail('content is required.');
+
+      if (input.type === 'checklist') {
+        const title = text(input.title);
+        if (!title) return fail('title is required for a checklist.');
+        const note = addChecklist(title, splitListSmart(content));
+        if (!note) return fail('Could not save that checklist.');
+        return ok(
+          { saved: { id: note.id, title: note.title, item_count: note.items.length } },
+          { kind: 'note_saved', label: `Saved checklist "${note.title}"` },
+        );
+      }
+      if (input.type !== 'quick') return fail('type must be "quick" or "checklist".');
+      const note = addQuickNote(content);
+      if (!note) return fail('Could not save that note.');
       return ok(
-        { saved: { id: entry.id, saved_at: `${formatDayKey(dayKey(new Date(entry.createdAt)))} ${formatTime(entry.createdAt)}` } },
-        { kind: 'journal_saved', label: `Saved journal entry: "${truncateLabel(value)}"` },
+        { saved: { id: note.id, saved_at: `${formatDayKey(dayKey(new Date(note.createdAt)))} ${formatTime(note.createdAt)}` } },
+        { kind: 'note_saved', label: `Saved note: "${truncateLabel(content)}"` },
       );
     }
 
-    case 'get_recent_journal': {
-      const days = typeof input.days === 'number' && Number.isFinite(input.days) ? Math.max(1, Math.floor(input.days)) : null;
-      if (days === null) return fail('days must be a number.');
-      const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-      const entries = getJournalState()
-        .entries.filter((e) => e.createdAt >= cutoff)
-        .slice(0, MAX_JOURNAL_RESULTS)
-        .map((e) => ({
-          saved_at: `${formatDayKey(dayKey(new Date(e.createdAt)))} ${formatTime(e.createdAt)}`,
-          text: e.text,
-        }));
-      return ok({ days, count: entries.length, entries });
+    case 'save_recipe': {
+      const title = text(input.title);
+      if (!title) return fail('title is required.');
+      const ingredientsRaw = text(input.ingredients);
+      if (!ingredientsRaw) return fail('ingredients is required.');
+      const stepsRaw = text(input.steps);
+      if (!stepsRaw) return fail('steps is required.');
+      const recipe = addRecipe({
+        title,
+        photoUri: null,
+        ingredients: splitListSmart(ingredientsRaw),
+        steps: splitLines(stepsRaw),
+        notes: text(input.notes) ?? '',
+      });
+      if (!recipe) return fail('Could not save that recipe.');
+      return ok(
+        {
+          saved: {
+            id: recipe.id,
+            title: recipe.title,
+            ingredient_count: recipe.ingredients.length,
+            step_count: recipe.steps.length,
+          },
+        },
+        { kind: 'recipe_saved', label: `Saved recipe "${recipe.title}"` },
+      );
+    }
+
+    case 'search_notes': {
+      const query = text(input.query);
+      if (!query) return fail('query is required.');
+      const results = searchNotes(getNotesState().notes, query)
+        .slice(0, MAX_NOTE_RESULTS)
+        .map(describeNoteResult);
+      return ok({ query, count: results.length, notes: results });
     }
 
     case 'add_event': {
@@ -477,6 +552,8 @@ export function executeCoachTool(name: string, rawInput: unknown): ToolRun {
         endTime: endTime ?? null,
         location: text(input.location) ?? '',
         note: text(input.note) ?? '',
+        // Reminders are set manually per event, in Schedule — the coach doesn't set a lead time.
+        reminderMinutesBefore: null,
       });
       if (!event) return fail('Could not create that event.');
       return ok(
@@ -516,6 +593,20 @@ export function executeCoachTool(name: string, rawInput: unknown): ToolRun {
     default:
       return fail(`Unknown tool "${name}".`);
   }
+}
+
+function describeNoteResult(note: Note) {
+  if (note.type === 'quick') return { id: note.id, type: note.type, text: truncateLabel(note.text) };
+  if (note.type === 'checklist') {
+    return {
+      id: note.id,
+      type: note.type,
+      title: note.title,
+      items: note.items.length,
+      done: note.items.filter((i) => i.done).length,
+    };
+  }
+  return { id: note.id, type: note.type, title: note.title, ingredients: note.ingredients.length, steps: note.steps.length };
 }
 
 function describeEventResult(event: ScheduleEvent, onDay?: string) {

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useType } from './fonts';
 import { colors, radius, spacing } from './theme';
@@ -95,6 +95,40 @@ export function IconButton({
   );
 }
 
+// An on/off row: a label (and optional hint) with a switch, themed for the dark surfaces.
+export function ToggleRow({
+  label,
+  hint,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  const type = useType();
+  return (
+    <View style={[styles.toggleRow, disabled && styles.disabled]}>
+      <View style={styles.toggleText}>
+        <Text style={type.body}>{label}</Text>
+        {hint ? <Text style={[type.mono, styles.toggleHint]}>{hint}</Text> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        disabled={disabled}
+        trackColor={{ false: colors.surface2, true: colors.accent }}
+        thumbColor={colors.text}
+        ios_backgroundColor={colors.surface2}
+        accessibilityLabel={label}
+      />
+    </View>
+  );
+}
+
 // Shared text-field look for inputs on the dark surfaces.
 export const fieldStyles = StyleSheet.create({
   input: {
@@ -142,4 +176,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 4 },
+  toggleText: { flex: 1, gap: 2 },
+  toggleHint: { color: colors.textMuted },
 });

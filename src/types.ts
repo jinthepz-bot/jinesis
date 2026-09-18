@@ -19,9 +19,11 @@ export type ActionKind =
   | 'task_completed'
   | 'buy_added'
   | 'buy_bought'
-  | 'journal_saved'
+  | 'journal_saved' // legacy: emitted by save_journal_entry before Stage 6, kept so old chat history still renders
   | 'event_added'
-  | 'event_deleted';
+  | 'event_deleted'
+  | 'note_saved'
+  | 'recipe_saved';
 
 // A change the assistant made to the user's data, shown in the chat.
 export interface ActionRecord {

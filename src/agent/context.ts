@@ -3,7 +3,7 @@ import { formatAmount } from '../coach/format';
 import { currentStreak, deadlineStatus, goalProgress } from '../coach/stats';
 import { entriesForGoal, getFeaturedGoal, type CoachState, type Goal } from '../coach/store';
 import { formatTime } from '../coach/days';
-import type { JournalEntry } from '../journal/store';
+import type { Note } from '../notes/store';
 import { describeEventTime } from '../schedule/format';
 import { eventsOnDay } from '../schedule/occurrences';
 import type { ScheduleEvent } from '../schedule/store';
@@ -11,8 +11,8 @@ import type { ScheduleEvent } from '../schedule/store';
 // Keep the state summary small: it is rebuilt and sent on every message.
 const MAX_TASKS = 15;
 const MAX_BUY_ITEMS = 15;
-const MAX_JOURNAL_ENTRIES = 5;
-const MAX_JOURNAL_CHARS = 200;
+const MAX_RECENT_NOTES = 5;
+const MAX_NOTE_CHARS = 200;
 
 function describeDeadline(goal: Goal, todayKey: string): string {
   const status = deadlineStatus(goal.deadline, todayKey);
@@ -44,14 +44,20 @@ function describeScheduleEvent(event: ScheduleEvent): string {
   return `- "${event.title}" (id: ${event.id}): ${describeEventTime(event)}${location}`;
 }
 
+function describeNoteSummary(note: Note, todayKey: string): string {
+  const day = formatDayKey(new Date(note.createdAt).toISOString().slice(0, 10), todayKey);
+  const when = `${day} ${formatTime(note.createdAt)}`;
+  if (note.type === 'quick') return `- ${when} (id: ${note.id}, quick): ${truncate(note.text, MAX_NOTE_CHARS)}`;
+  if (note.type === 'checklist') {
+    const done = note.items.filter((i) => i.done).length;
+    return `- ${when} (id: ${note.id}, checklist): "${note.title}" (${done}/${note.items.length} done)`;
+  }
+  return `- ${when} (id: ${note.id}, recipe): "${note.title}" (${note.ingredients.length} ingredients, ${note.steps.length} steps)`;
+}
+
 // A snapshot of the user's data, sent as its own system block on each request so
 // the coach never asks for something it can already see.
-export function buildCoachContext(
-  state: CoachState,
-  journal: JournalEntry[],
-  schedule: ScheduleEvent[],
-  todayKey: string,
-): string {
+export function buildCoachContext(state: CoachState, notes: Note[], schedule: ScheduleEvent[], todayKey: string): string {
   const featured = getFeaturedGoal(state);
   const streak = currentStreak(entriesForGoal(state, featured.id), todayKey);
   const others = state.goals.filter((g) => !g.featured);
@@ -101,16 +107,9 @@ export function buildCoachContext(
       : ['- none']),
   );
 
-  const recent = journal.slice(0, MAX_JOURNAL_ENTRIES);
-  lines.push('', `RECENT JOURNAL (${recent.length} of ${journal.length}, newest first):`);
-  lines.push(
-    ...(recent.length > 0
-      ? recent.map((e) => {
-          const day = formatDayKey(new Date(e.createdAt).toISOString().slice(0, 10), todayKey);
-          return `- ${day} ${formatTime(e.createdAt)}: ${truncate(e.text, MAX_JOURNAL_CHARS)}`;
-        })
-      : ['- none']),
-  );
+  const recentNotes = notes.slice(0, MAX_RECENT_NOTES);
+  lines.push('', `RECENT NOTES (${recentNotes.length} of ${notes.length}, newest first):`);
+  lines.push(...(recentNotes.length > 0 ? recentNotes.map((n) => describeNoteSummary(n, todayKey)) : ['- none']));
 
   return lines.join('\n');
 }

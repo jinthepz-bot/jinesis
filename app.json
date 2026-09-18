@@ -19,10 +19,26 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "Jinesist",
+      "shortName": "Jinesist",
+      "themeColor": "#c98a3b",
+      "backgroundColor": "#1c1a17",
+      "display": "standalone",
+      "lang": "en"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Jinesist uses your photo library to attach a picture to a recipe.",
+          "cameraPermission": "Jinesist uses your camera to attach a picture to a recipe.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-notifications"
     ]
   }
 }

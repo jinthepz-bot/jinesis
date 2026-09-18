@@ -43,9 +43,12 @@ function mockReply(text: string): TurnOutput {
     return { text: '(Mock) Added that task.', actions: runTool('add_task', { text: task[1] }) };
   }
 
-  const journal = /^(?:note(?: down)?(?: that)?|journal)\s+(.+)/i.exec(text);
-  if (journal) {
-    return { text: '(Mock) Saved that to your journal.', actions: runTool('save_journal_entry', { text: journal[1] }) };
+  const note = /^(?:note(?: down)?(?: that)?|journal)\s+(.+)/i.exec(text);
+  if (note) {
+    return {
+      text: '(Mock) Saved that note.',
+      actions: runTool('save_note', { type: 'quick', content: note[1] }),
+    };
   }
 
   const buy = /^(?:buy|add to buy)\s+(.+)/i.exec(text);

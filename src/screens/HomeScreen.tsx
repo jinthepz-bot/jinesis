@@ -28,7 +28,8 @@ import { StatTile } from '../home/StatTile';
 import { TaskListCard } from '../home/TaskListCard';
 import { TodayStrip } from '../home/TodayStrip';
 import { WeekBars } from '../home/WeekBars';
-import { resetJournal, useJournal } from '../journal/store';
+import { deleteNotePhoto } from '../notes/photos';
+import { resetNotes, useNotes } from '../notes/store';
 import { eventsOnDay } from '../schedule/occurrences';
 import { resetSchedule, useSchedule } from '../schedule/store';
 
@@ -36,12 +37,14 @@ function confirmReset() {
   confirmDestructive({
     title: 'Reset all data?',
     message:
-      'This permanently deletes your goals and their progress, tasks, to-buy list, journal, and schedule on this device. ' +
+      'This permanently deletes your goals and their progress, tasks, to-buy list, notes, and schedule on this device. ' +
       "Chat isn't affected.",
     confirmLabel: 'Reset',
     onConfirm: () => {
       resetCoachData();
-      resetJournal();
+      for (const note of resetNotes()) {
+        if (note.type === 'recipe') deleteNotePhoto(note.photoUri);
+      }
       resetSchedule();
     },
   });
@@ -52,13 +55,13 @@ export function HomeScreen() {
   const type = useType();
   const insets = useSafeAreaInsets();
   const { state, loaded } = useCoach();
-  const journal = useJournal(); // loaded here too so Reset can't run before the journal is read
+  const notes = useNotes(); // loaded here too so Reset can't run before notes are read
   const schedule = useSchedule(); // loaded here too so Reset can't run before the schedule is read
   const todayKey = useTodayKey();
   const [pickerOpen, setPickerOpen] = useState(false);
 
   // Blank until stored data is read, so numbers don't flash from 0.
-  if (!loaded || !journal.loaded || !schedule.loaded) return <View style={styles.root} />;
+  if (!loaded || !notes.loaded || !schedule.loaded) return <View style={styles.root} />;
 
   const featured = getFeaturedGoal(state);
   const entries = entriesForGoal(state, featured.id);

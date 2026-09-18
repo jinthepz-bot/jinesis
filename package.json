@@ -13,7 +13,10 @@
     "@react-navigation/bottom-tabs": "^7.19.0",
     "@react-navigation/native": "^7.4.0",
     "expo": "~57.0.22",
+    "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
+    "expo-image-picker": "~57.0.18",
+    "expo-notifications": "~57.0.19",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -31,6 +34,8 @@
     "android": "node node_modules/expo/bin/cli start --android",
     "ios": "node node_modules/expo/bin/cli start --ios",
     "web": "node node_modules/expo/bin/cli start --web",
+    "build:web": "node node_modules/expo/bin/cli export -p web",
+    "serve:web": "node node_modules/expo/bin/cli serve",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit"
   },
   "private": true
